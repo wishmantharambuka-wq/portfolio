@@ -55,7 +55,7 @@ export function Nav() {
           scrollToSection('hero');
         }}
         // Hidden on desktop — the side rail carries the mark there.
-        className="fixed left-5 top-5 z-50 font-display text-sm font-semibold tracking-tight text-ash-100 transition hover:text-ash-50 sm:left-8 sm:top-7 lg:hidden"
+        className="tap fixed left-5 top-5 z-50 font-display text-sm font-semibold tracking-tight text-ash-100 transition hover:text-ash-50 sm:left-8 sm:top-7 lg:hidden"
       >
         {profile.shortName}
         <span className="text-ds">.</span>

@@ -4,6 +4,7 @@ import { scrollState } from '../lib/scroll';
 import { scrollToSection } from '../lib/useSmoothScroll';
 import { navigate } from '../lib/router';
 import { SECTION_ICONS, CV_ICON, ADMIN_ICON } from './sectionIcons';
+import { adminEnabled } from '../lib/adminAuth';
 
 /* --------------------------------------------------------------------------
  *  SIDE RAIL  (ref: the green expanding sidebar)
@@ -180,12 +181,16 @@ export function SideRail() {
             onClick={() => navigate('cv')}
             icon={CV_ICON}
           />
-          <RailLink
-            open={open}
-            label="Admin"
-            onClick={() => navigate('admin')}
-            icon={ADMIN_ICON}
-          />
+          {/* Hidden unless the panel is actually part of this build, so the
+              public site advertises no editor at all. */}
+          {adminEnabled() && (
+            <RailLink
+              open={open}
+              label="Admin"
+              onClick={() => navigate('admin')}
+              icon={ADMIN_ICON}
+            />
+          )}
         </div>
       </div>
     </nav>

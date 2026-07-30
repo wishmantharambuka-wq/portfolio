@@ -3,7 +3,7 @@ import { useContentStore } from '../../lib/contentStore';
 import { navigate } from '../../lib/router';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { AdminLogin } from './AdminLogin';
-import { isSignedIn, signOut } from '../../lib/adminAuth';
+import { isSignedIn, signOut, adminEnabled } from '../../lib/adminAuth';
 import {
   isSupported as canSaveToDisk,
   loadSavedHandle,
@@ -66,6 +66,10 @@ const emptyProject = (): Project => ({
 
 export function AdminPage() {
   const [authed, setAuthed] = useState(() => isSignedIn());
+
+  // Belt and braces: App.tsx already refuses to load this module unless the
+  // build includes it, but never render the editor if the flag is somehow off.
+  if (!adminEnabled()) return null;
 
   if (!authed) return <AdminLogin onSuccess={() => setAuthed(true)} />;
   return <AdminPanel onSignOut={() => { signOut(); setAuthed(false); }} />;

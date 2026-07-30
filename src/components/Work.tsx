@@ -3,6 +3,7 @@ import { Section } from './Section';
 import { ProjectRow } from './ProjectRow';
 import { SeeAll } from './SeeAll';
 import { useContent } from '../lib/contentStore';
+import { adminEnabled } from '../lib/adminAuth';
 import type { Project } from '../data/content';
 import type { Accent } from './Section';
 
@@ -84,8 +85,14 @@ export function GisSection() {
 function EmptyNote({ label }: { label: string }): ReactNode {
   return (
     <p className="glass rounded-xl p-6 text-sm text-ash-400">
-      No {label} yet — add them from the admin panel at{' '}
-      <code className="text-ash-200">#/admin</code>.
+      No {label} yet.
+      {/* Don't advertise the editor's URL on the public site. */}
+      {adminEnabled() && (
+        <>
+          {' '}
+          Add them from the admin panel at <code className="text-ash-200">#/admin</code>.
+        </>
+      )}
     </p>
   );
 }

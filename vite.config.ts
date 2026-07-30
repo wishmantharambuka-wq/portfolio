@@ -1,11 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Base path. Vercel (and any root-domain host) serves from '/', which is the
-// default. The GitHub Pages workflow sets VITE_BASE to '/<repo>/' because
-// project pages are served from a subdirectory.
-const base = process.env.VITE_BASE ?? '/';
-
 /**
  * Absolute site URL, injected into the Open Graph tags in index.html as
  * %VITE_SITE_URL%. Social scrapers don't run JS, so og:image/og:url must be
@@ -30,24 +25,54 @@ function resolveSiteUrl(): string | undefined {
   return undefined;
 }
 
-// Set before defineConfig so it is in place by the time Vite loads env for the
-// index.html %VITE_SITE_URL% substitution.
-const siteUrl = resolveSiteUrl();
-if (siteUrl) process.env.VITE_SITE_URL = siteUrl;
+export default defineConfig(({ command }) => {
+  const isDev = command === 'serve';
 
-export default defineConfig({
-  base,
-  plugins: [react()],
-  build: {
-    target: 'es2020',
-    chunkSizeWarningLimit: 1200,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          three: ['three'],
-          r3f: ['@react-three/fiber', '@react-three/drei', '@react-three/postprocessing'],
+  // Base path. Vercel (and any root-domain host) serves from '/', the default.
+  // The GitHub Pages workflow sets VITE_BASE to '/<repo>/' because project
+  // pages live in a subdirectory.
+  const base = process.env.VITE_BASE ?? '/';
+
+  // Set before the HTML transform reads env for %VITE_SITE_URL%.
+  const siteUrl = resolveSiteUrl();
+  if (siteUrl) process.env.VITE_SITE_URL = siteUrl;
+
+  /**
+   * Is the admin panel part of this build?
+   *
+   * Dev: always. Production: only with VITE_ENABLE_ADMIN=true.
+   *
+   * This is a compile-time constant on purpose. Because `__ADMIN_ENABLED__`
+   * is substituted literally, Rollup can prove the admin branch in App.tsx is
+   * dead and drop the dynamic import entirely — so the panel's code is not
+   * merely disabled in production, it is *not shipped*. That is the difference
+   * between deterrence and actually removing the attack surface (and it keeps
+   * the editor's weight off every visitor's first load).
+   */
+  const adminEnabled =
+    isDev || String(process.env.VITE_ENABLE_ADMIN ?? '').toLowerCase() === 'true';
+
+  if (!isDev) {
+    console.log(`[build] admin panel: ${adminEnabled ? 'INCLUDED' : 'excluded'}`);
+  }
+
+  return {
+    base,
+    plugins: [react()],
+    define: {
+      __ADMIN_ENABLED__: JSON.stringify(adminEnabled),
+    },
+    build: {
+      target: 'es2020',
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            three: ['three'],
+            r3f: ['@react-three/fiber', '@react-three/drei', '@react-three/postprocessing'],
+          },
         },
       },
     },
-  },
+  };
 });

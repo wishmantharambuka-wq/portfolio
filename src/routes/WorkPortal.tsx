@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useContent } from '../lib/contentStore';
 import { navigate, type WorkCategory } from '../lib/router';
@@ -305,6 +305,30 @@ function Panel({
   );
 }
 
+/**
+ * Keeps the focused panel fully in frame on any viewport.
+ *
+ * The visible width at the panel's depth is `2·d·tan(fov/2)·aspect`, so a tall
+ * narrow phone sees a much narrower slice than a desktop window. Without this
+ * the panel's edges clip on portrait screens; pulling the camera back by the
+ * amount the aspect ratio demands fixes it at every size.
+ */
+function ResponsiveCamera({ panelWidth = 3.4, margin = 1.25 }: { panelWidth?: number; margin?: number }) {
+  const { camera, size } = useThree();
+
+  useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    const aspect = size.width / Math.max(size.height, 1);
+    const need = panelWidth * margin;
+    const halfFov = (cam.fov * Math.PI) / 360;
+    const required = need / (2 * Math.tan(halfFov) * Math.max(aspect, 0.01));
+    cam.position.z = THREE.MathUtils.clamp(required, 7.5, 15);
+    cam.updateProjectionMatrix();
+  }, [camera, size.width, size.height, panelWidth, margin]);
+
+  return null;
+}
+
 function Gallery({
   items,
   target,
@@ -464,6 +488,7 @@ export function WorkPortal({ category }: { category: WorkCategory }) {
               camera={{ fov: 45, near: 0.1, far: 60, position: [0, 0, 7.5] }}
             >
               <Suspense fallback={null}>
+                <ResponsiveCamera />
                 <Gallery items={items} target={target} onSelect={onSelect} />
               </Suspense>
             </Canvas>
@@ -481,16 +506,52 @@ export function WorkPortal({ category }: { category: WorkCategory }) {
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-ash-300">{focused.subtitle}</p>
             )}
             <div className="pointer-events-auto mt-5 flex items-center gap-2.5">
-              <button type="button" onClick={() => step(-1)} className="btn-ghost h-10 w-10 !px-0" aria-label="Previous">
+              <button
+                type="button"
+                onClick={() => step(-1)}
+                disabled={target === 0}
+                className="tap btn-ghost h-11 w-11 !px-0 text-lg"
+                aria-label="Previous project"
+              >
                 ‹
               </button>
-              <button type="button" onClick={() => setDetail(target)} className="btn-primary">
+              <button type="button" onClick={() => setDetail(target)} className="tap btn-primary">
                 View details
               </button>
-              <button type="button" onClick={() => step(1)} className="btn-ghost h-10 w-10 !px-0" aria-label="Next">
+              <button
+                type="button"
+                onClick={() => step(1)}
+                disabled={target === count - 1}
+                className="tap btn-ghost h-11 w-11 !px-0 text-lg"
+                aria-label="Next project"
+              >
                 ›
               </button>
             </div>
+
+            {/* How to move around — differs by input, so say the right thing. */}
+            <p className="mt-4 font-mono text-[9px] uppercase tracking-[0.22em] text-ash-400">
+              <span className="hidden sm:inline">Scroll, drag or use ← → · Enter for details</span>
+              <span className="sm:hidden">Swipe to browse · tap a panel for details</span>
+            </p>
+
+            {/* Dot index — orientation when there are many projects. */}
+            {count > 1 && (
+              <div className="pointer-events-auto mt-4 flex flex-wrap items-center justify-center gap-1.5">
+                {items.map((it, i) => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => setTarget(i)}
+                    aria-label={`Go to ${it.title}`}
+                    aria-current={i === target ? 'true' : undefined}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      i === target ? 'w-6 bg-ash-100' : 'w-1.5 bg-ash-500/60 hover:bg-ash-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

@@ -99,6 +99,20 @@ A header badge shows **Unpublished draft** whenever level 3 is active.
 from the Publish tab first. The Publish tab also has Import (to move a draft
 between machines), Discard draft, and Reset to defaults.
 
+### Security
+
+The admin panel is **excluded from production builds** by default. That's a
+compile-time exclusion, not a runtime check: `__ADMIN_ENABLED__` is substituted
+literally so Rollup strips the editor entirely (the emitted `Admin` chunk is
+0.19 kB of `return null`; no admin strings survive in the bundle; the nav link
+is gone). Enable it with `VITE_ENABLE_ADMIN=true` only if you accept shipping a
+bypassable client-side gate.
+
+When it *is* enabled, sign-in verifies a PBKDF2-SHA-256 hash (600k iterations,
+~545 ms/attempt) rather than a plaintext string, with escalating lockout after
+three failures. Set your own with `npm run set-admin-password` — it writes salt
+and hash to `.env.local` (gitignored). See `.env.example`.
+
 ### Sign-in
 
 The panel is behind a sign-in (`admin` / `admin123`, in

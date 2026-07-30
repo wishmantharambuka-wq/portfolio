@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "deploy": "git add public && git commit -m \"Update portfolio content\" && git push"
+    "deploy": "git add public && git commit -m \"Update portfolio content\" && git push",
+    "set-admin-password": "node scripts/set-admin-password.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.3",

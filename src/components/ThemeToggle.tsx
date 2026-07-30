@@ -16,7 +16,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       aria-checked={isDark}
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} theme`}
       title={`Switch to ${isDark ? 'light' : 'dark'} theme`}
-      className={`glass group relative flex items-center rounded-full transition ${
+      className={`tap glass group relative flex items-center rounded-full transition ${
         compact ? 'h-8 w-[3.25rem] px-1' : 'h-9 w-[3.75rem] px-1'
       }`}
     >

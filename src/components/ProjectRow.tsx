@@ -151,7 +151,7 @@ export function ProjectRow({
                   href={project.live}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="rounded-lg border border-ash-600/60 px-3 py-2 text-xs font-medium text-ash-100 transition hover:border-ash-400 hover:text-ash-50"
+                  className="tap rounded-lg border border-ash-600/60 px-3 py-2 text-xs font-medium text-ash-100 transition hover:border-ash-400 hover:text-ash-50"
                 >
                   Live ↗
                 </a>
@@ -161,7 +161,7 @@ export function ProjectRow({
                   href={project.repo}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="rounded-lg border border-ash-600/60 px-3 py-2 text-xs font-medium text-ash-100 transition hover:border-ash-400 hover:text-ash-50"
+                  className="tap rounded-lg border border-ash-600/60 px-3 py-2 text-xs font-medium text-ash-100 transition hover:border-ash-400 hover:text-ash-50"
                 >
                   Code ↗
                 </a>
@@ -216,7 +216,7 @@ export function ProjectRow({
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
-                className="pointer-events-auto relative z-20 shrink-0 font-mono text-[10px] uppercase tracking-[0.2em] text-ash-300 transition hover:text-ash-50"
+                className="tap pointer-events-auto relative z-20 shrink-0 font-mono text-[10px] uppercase tracking-[0.2em] text-ash-300 transition hover:text-ash-50"
               >
                 {open ? '— Less' : '+ Case study'}
               </button>

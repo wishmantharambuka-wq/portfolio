@@ -4,6 +4,7 @@ import { scrollState } from '../lib/scroll';
 import { scrollToSection } from '../lib/useSmoothScroll';
 import { navigate } from '../lib/router';
 import { SECTION_ICONS, CV_ICON, ADMIN_ICON } from './sectionIcons';
+import { adminEnabled } from '../lib/adminAuth';
 
 /* --------------------------------------------------------------------------
  *  MOBILE NAVIGATION  (< lg)
@@ -64,7 +65,7 @@ export function MobileNav() {
         onClick={() => setOpen(true)}
         aria-label="Open navigation menu"
         aria-expanded={open}
-        className="glass fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2.5 rounded-full py-2 pl-4 pr-3 shadow-lg"
+        className="tap glass fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2.5 rounded-full py-2 pl-4 pr-3 shadow-lg"
       >
         <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ash-200">
           {sections[active]?.label ?? ''}
@@ -174,8 +175,12 @@ export function MobileNav() {
             </ul>
           </nav>
 
-          {/* CV + Admin */}
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-5">
+          {/* CV + Admin (Admin only when it's part of this build) */}
+          <div
+            className={`mt-4 grid gap-3 border-t border-white/15 pt-5 ${
+              adminEnabled() ? 'grid-cols-2' : 'grid-cols-1'
+            }`}
+          >
             <button
               type="button"
               onClick={() => goRoute('cv')}
@@ -186,16 +191,18 @@ export function MobileNav() {
               </svg>
               <span className="text-sm font-medium">CV</span>
             </button>
-            <button
-              type="button"
-              onClick={() => goRoute('admin')}
-              className="flex items-center justify-center gap-2.5 rounded-2xl bg-white/10 py-3.5 text-white transition hover:bg-white/15"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                {ADMIN_ICON}
-              </svg>
-              <span className="text-sm font-medium">Admin</span>
-            </button>
+            {adminEnabled() && (
+              <button
+                type="button"
+                onClick={() => goRoute('admin')}
+                className="flex items-center justify-center gap-2.5 rounded-2xl bg-white/10 py-3.5 text-white transition hover:bg-white/15"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  {ADMIN_ICON}
+                </svg>
+                <span className="text-sm font-medium">Admin</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

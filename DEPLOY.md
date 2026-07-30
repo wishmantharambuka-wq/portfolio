@@ -109,12 +109,49 @@ What the browser is actually granted: permission to write **one file you picked
 yourself**, on your own machine, while the page is open. Nothing more. Revoke it
 any time with **Forget** in the panel, or in the browser's site settings.
 
-Separately, the admin **password** (`admin` / `admin123` in
-`src/lib/adminAuth.ts`) is obscurity, not security — it ships in the JavaScript
-bundle and can be bypassed. That's acceptable because the panel only edits the
-visitor's *own browser copy*; nothing they do reaches the public site, because
-publishing requires your machine and your push. Change it in that file if you
-like.
+## Admin panel security
+
+The honest problem: a password checked in the browser can never be real
+security, because the check runs in JavaScript the visitor can read or skip.
+Making the password stronger doesn't fix that. So the protection is layered,
+with the real measure first:
+
+**1. It isn't in the public build.** `VITE_ENABLE_ADMIN` is a *compile-time*
+flag. In a production build without it, Rollup proves the admin branch dead and
+strips the whole editor — verified: the emitted `Admin` chunk is 0.19 kB
+containing `return null`, and the strings "Content admin", "Save to repo",
+"admin123" appear nowhere in the bundle. The nav link disappears too. There is
+nothing on the live site to attack, and every visitor's first load is ~40 kB
+lighter.
+
+You don't need it there anyway: content is authored locally and published by
+pushing from your machine.
+
+**2. The password is hashed.** When the panel *is* enabled, sign-in checks a
+PBKDF2-SHA-256 hash (600,000 iterations, random salt), so the bundle never
+contains the password. Measured cost: ~545 ms per attempt — trivial once,
+punishing for a brute-forcer.
+
+**3. Failures are locked out.** Three free tries, then 15s / 60s / 300s / 900s.
+The correct password is refused while locked.
+
+### Set your own password
+
+```bash
+npm run set-admin-password
+```
+
+Writes `VITE_ADMIN_PW_SALT` / `VITE_ADMIN_PW_HASH` into `.env.local`
+(gitignored), so the password never enters git or the bundle. Restart the dev
+server afterwards. Until you do this the shipped default (`admin` / `admin123`)
+applies and the login screen warns you.
+
+### If you really want it on the live site
+
+Add `VITE_ENABLE_ADMIN=true` plus your salt/hash to Vercel → Settings →
+Environment Variables. Understand the trade-off first: you'd be shipping the
+editor publicly, protected only by a bypassable client-side gate. Since editing
+still requires your local repo to publish, there's little to gain.
 
 ---
 
