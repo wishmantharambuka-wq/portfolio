@@ -1,35 +1,34 @@
-# Deploying — and then editing without VS Code
+# Deploying — and editing without VS Code
 
 Two parts:
 
-1. **One-time setup** (below) — put the site online. Needs your GitHub + Vercel
-   login, so only you can do these steps.
-2. **Every day after that** — open `#/admin`, edit, click **Deploy now**. No
-   terminal, no VS Code, no git.
+1. **One-time setup** — put the site online. Needs your GitHub + Vercel login,
+   so only you can do these steps.
+2. **Every day after that** — open `#/admin`, edit, click **Save to repo**, then
+   run one command. No VS Code, no code editing, and **no credentials stored
+   anywhere.**
 
 ---
 
-## Part 1 — one-time setup (~10 minutes)
+## Part 1 — one-time setup (~8 minutes)
 
 The repo is already initialised and committed locally on branch `main`.
 
 ### Step 1 · Create the GitHub repo and push
 
-Open a terminal **in this folder** once. Easiest route, using the GitHub CLI
-(already installed here):
+Open a terminal **in this folder** once. Using the GitHub CLI (already
+installed here):
 
 ```bash
 gh auth login
 ```
 
-Then create the repo and push in one command:
-
 ```bash
 gh repo create portfolio --public --source=. --remote=origin --push
 ```
 
-Prefer doing it by hand? Create an empty repo at github.com/new (don't add a
-README), then:
+Prefer the manual route? Create an empty repo at github.com/new (no README),
+then:
 
 ```bash
 git remote add origin https://github.com/YOUR-USERNAME/portfolio.git
@@ -38,105 +37,104 @@ git push -u origin main
 
 ### Step 2 · Connect Vercel
 
-1. Go to [vercel.com/new](https://vercel.com/new) and sign in **with GitHub**.
+1. Go to [vercel.com/new](https://vercel.com/new), sign in **with GitHub**.
 2. Import the `portfolio` repo.
-3. Change nothing — `vercel.json` already sets framework, build command and
+3. Change nothing — `vercel.json` already sets the framework, build command and
    output directory. Click **Deploy**.
 
-You get a live URL like `https://portfolio-xxxx.vercel.app` in about a minute.
+Live in about a minute at `https://portfolio-xxxx.vercel.app`. Every push to
+`main` redeploys automatically.
 
-Every push to `main` now redeploys automatically. That is the hook the admin
-panel's Deploy button uses.
-
-> **Open Graph URLs are automatic.** `vite.config.ts` reads Vercel's
-> `VERCEL_PROJECT_PRODUCTION_URL` at build time, so share previews resolve to
-> absolute URLs with no configuration. If you add a custom domain later, set
+> **Share previews are automatic.** `vite.config.ts` reads Vercel's
+> `VERCEL_PROJECT_PRODUCTION_URL` at build time, so the Open Graph tags get
+> absolute URLs with no configuration. Adding a custom domain later? Set
 > `VITE_SITE_URL` in Vercel → Settings → Environment Variables.
 
-### Step 3 · Create the deploy token
+### Step 3 · Link the content file (once, in the admin panel)
 
-1. GitHub → **Settings** → **Developer settings** → **Personal access tokens** →
-   **Fine-grained tokens** → **Generate new token**.
-2. Set it up exactly like this:
-   - **Repository access** → *Only select repositories* → pick `portfolio`
-   - **Permissions** → Repository permissions → **Contents: Read and write**
-     (leave everything else alone)
-   - **Expiration** → 90 days
-3. Copy the token (`github_pat_…`) — GitHub shows it once.
-4. Open your live site at `/#/admin`, sign in, go to the **Publish** tab, fill
-   in owner + repo, paste the token, click **Test connection**.
+1. Run the site locally: `npm run dev`, open `http://localhost:5173/#/admin`.
+2. Sign in, go to the **Publish** tab, click **Save to repo**.
+3. The browser asks which file to write. Pick
+   **`public/content.json`** inside this project folder.
+   *(If it doesn't exist yet, type the name in that folder to create it.)*
 
-You should see *Connected to your-name/portfolio*.
+That choice is remembered. From then on it's a single click.
+
+> Needs Chrome, Edge, Brave or Opera. Firefox and Safari can't write files
+> directly — there the panel automatically shows **Download** instead, and you
+> move the file into `public/` yourself.
 
 ---
 
 ## Part 2 — the everyday loop
 
 ```
-#/admin  →  edit anything  →  Publish tab  →  Deploy now
-         →  commits public/content.json to GitHub
-         →  Vercel rebuilds (~1 min)
-         →  live site updated
+#/admin  →  edit anything  →  Save to repo      (writes public/content.json)
+         →  npm run deploy                       (commits + pushes)
+         →  Vercel rebuilds (~1 min)  →  live
 ```
 
-Only that. No VS Code.
+The **Copy** button in the panel copies the command for you.
+
+Not comfortable with the terminal? After **Save to repo**, open **GitHub
+Desktop** and click *Commit* then *Push* — same result.
 
 **What you can change this way:** every word and every project — cover text,
 career paths, all project fields (title, year, blurb, problem/approach/outcome,
 stack, live + repo URLs, thumbnail path, status, metrics), the design gallery,
 skills, and the whole CV.
 
-**What still needs a real commit:** code and image *files*. Content is data;
-images are files, and the browser can't add files to the repo. To add a
-screenshot, drop it in `public/assets/projects/`, push once, then point the
-project's thumbnail field at it from the admin panel.
+**What still needs a file copy:** images. Content is data; images are files. Drop
+them in `public/assets/projects/`, then point a project's thumbnail field at the
+path from the admin panel. `npm run deploy` stages all of `public/`, so images
+and content go up together.
 
 ---
 
-## Security — read this once
+## Why it works this way
 
-The Deploy button needs a GitHub token, and on a static site there is **no
-server to hide it in**. It is stored in your browser's `localStorage`. That is
-a real trade-off, not something to wave away, so the design keeps the blast
-radius as small as possible:
+Publishing needs write access to your repository, and a static site has no
+server to keep a credential in. The two honest options were:
 
-- The token is **fine-grained** and scoped to **one repository** with **only**
-  `Contents: Read and write`. If it ever leaked, someone could edit files in
-  that one repo — not your account, not your other repos, nothing private.
-- It has an **expiry**. When it lapses, generate another and paste it again.
-- It is stored under its own key, is **never** written into `content.json`, and
-  is never logged. **Forget** removes it.
-- **Never paste a _classic_ token here** — those are account-wide, and that
-  would turn a small risk into a large one.
+| | Store a GitHub token in the browser | **Save to disk, you push** ← chosen |
+| --- | --- | --- |
+| Credential at rest | Yes, in localStorage | **None** |
+| Could leak | Yes (scoped, but real) | **Nothing to leak** |
+| Publishing | One click | One click + one command |
+| Accidental publish | Possible | **Impossible — you push** |
 
-Verified during build: the token does not leak into the exported content or the
-deploy config.
+The extra command buys you a system with no secrets in it. Worth it.
 
-Also worth knowing: the admin **password** (`admin` / `admin123` in
+What the browser is actually granted: permission to write **one file you picked
+yourself**, on your own machine, while the page is open. Nothing more. Revoke it
+any time with **Forget** in the panel, or in the browser's site settings.
+
+Separately, the admin **password** (`admin` / `admin123` in
 `src/lib/adminAuth.ts`) is obscurity, not security — it ships in the JavaScript
-bundle and can be bypassed. It doesn't need to be strong, because the panel only
-edits the visitor's own browser copy. The real security boundary is the token,
-which is why the scoping above is what actually matters. Change the password in
-that file if you like.
+bundle and can be bypassed. That's acceptable because the panel only edits the
+visitor's *own browser copy*; nothing they do reaches the public site, because
+publishing requires your machine and your push. Change it in that file if you
+like.
 
 ---
 
 ## Alternative hosts
 
-Everything above works the same on any host that rebuilds on a GitHub push:
+Anything that rebuilds on a GitHub push works identically:
 
-- **GitHub Pages** — `.github/workflows/deploy.yml` is already set up. Enable
-  it at Settings → Pages → Source: **GitHub Actions**. It injects the
-  `/<repo>/` base path automatically.
+- **GitHub Pages** — `.github/workflows/deploy.yml` is ready. Enable it at
+  Settings → Pages → Source: **GitHub Actions**. It injects the `/<repo>/` base
+  path automatically.
 - **Netlify** — import the repo; build `npm run build`, publish `dist`.
 
 ## Troubleshooting
 
 | Symptom | Cause / fix |
 | --- | --- |
-| `Token rejected (401)` | Expired, mistyped or revoked — generate a new fine-grained token. |
-| `Forbidden (403)` | Token lacks `Contents: Read and write` on this repo. |
-| `Not found (404)` | Check owner/repo spelling, that branch `main` exists, and that the token lists this repo. |
-| `Conflict (409)` | The file changed on GitHub since the page loaded. Click **Deploy now** again. |
-| Deploy succeeded but the site looks unchanged | Vercel takes ~1 min. Then hard-refresh (Ctrl+Shift+R). |
-| Edits vanished | Drafts live in one browser's storage. Deploy to make them permanent; clearing site data loses them. |
+| No file picker appears | Browser doesn't support it (Firefox/Safari) — use **Download instead**, or switch to Chrome/Edge/Brave. |
+| "Permission to write that file was denied" | Browsers drop file permission between sessions. Click **Save to repo** again and allow it. |
+| Saved, but the live site is unchanged | You still need to push: `npm run deploy`. Then give Vercel ~1 min and hard-refresh (Ctrl+Shift+R). |
+| `npm run deploy` says "nothing to commit" | The file didn't change — check the panel actually said *Saved at …*. |
+| `npm run deploy` fails on push | Not connected to GitHub yet — do Part 1 Step 1. |
+| Edits vanished | Drafts live in one browser's storage. Save + push to make them permanent; clearing site data loses them. |
+| Wrong file linked | **Change file** in the panel, and re-pick `public/content.json`. |

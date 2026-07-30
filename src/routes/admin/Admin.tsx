@@ -1,22 +1,18 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useContentStore } from '../../lib/contentStore';
 import { navigate } from '../../lib/router';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { AdminLogin } from './AdminLogin';
 import { isSignedIn, signOut } from '../../lib/adminAuth';
 import {
-  loadConfig,
-  saveConfig,
-  loadToken,
-  saveToken,
-  forgetToken,
-  maskToken,
-  testConnection,
-  deployContent,
-  type DeployConfig,
-  type ConnectionInfo,
-  type DeployResult,
-} from '../../lib/deploy';
+  isSupported as canSaveToDisk,
+  loadSavedHandle,
+  forgetHandle,
+  linkRepoFile,
+  writeToHandle,
+  downloadJson,
+  type RepoFileHandle,
+} from '../../lib/saveToDisk';
 import { defaultContent, type Content, type Project } from '../../data/content';
 import {
   Field,
@@ -35,9 +31,9 @@ import {
  *  ADMIN PANEL  ·  #/admin
  *
  *  Edits live in localStorage (this browser only) and apply to the site
- *  instantly so you can see changes in context. Because GitHub Pages is
- *  static hosting with no backend, making edits public is a deliberate,
- *  explicit step: Publish → downloads content.json → you commit it.
+ *  instantly so you can see changes in context. Because this is static
+ *  hosting with no backend, making edits public is a deliberate, explicit
+ *  step: Publish → write content.json to disk → you push it.
  * ========================================================================== */
 
 const TABS = [
@@ -1253,17 +1249,6 @@ function PublishTab({
   const fileInput = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
 
-  const download = () => {
-    const blob = new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'content.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    setMessage('content.json downloaded — now copy it into public/ and commit.');
-  };
-
   const onImport = (file: File) => {
     file
       .text()
@@ -1280,22 +1265,8 @@ function PublishTab({
 
   return (
     <>
-      <DeployPanel content={content} />
+      <SavePanel content={content} />
 
-      <Panel
-        title="Manual export (fallback)"
-        description="If you'd rather not connect a token, publish by hand: download the file, drop it into the repo, commit."
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={download} className="btn-ghost">
-            Download content.json
-          </button>
-          <span className="font-mono text-[11px] text-ash-400">
-            → save as <code className="text-ash-200">public/content.json</code> → commit → the host
-            rebuilds
-          </span>
-        </div>
-      </Panel>
 
       <Panel
         title="Draft state"
@@ -1378,269 +1349,232 @@ function PublishTab({
   );
 }
 
-/* ---------------------------- deploy panel ------------------------------- */
+/* ----------------------------- save panel -------------------------------- */
 
 /**
- * One-click deploy. Commits content.json to GitHub via the Contents API; the
- * host (Vercel / GitHub Pages) rebuilds on that commit. No terminal needed.
+ * Publish without any credential.
  *
- * The token lives only in this browser's localStorage — see src/lib/deploy.ts
- * for the security reasoning and the required token scope.
+ * The browser writes content.json straight into the repo folder on this
+ * machine (File System Access API), then you push. There is no token, no
+ * secret in storage, and nothing that could leak — the only thing granted is
+ * permission to write one file you picked yourself.
+ *
+ * Browsers without the API (Firefox, Safari) fall back to a download.
  */
-function DeployPanel({ content }: { content: Content }) {
-  const [config, setConfig] = useState<DeployConfig>(() => loadConfig());
-  const [token, setToken] = useState<string>(() => loadToken());
-  const [tokenDirty, setTokenDirty] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'testing' | 'deploying'>('idle');
-  const [info, setInfo] = useState<ConnectionInfo | null>(null);
+function SavePanel({ content }: { content: Content }) {
+  const supported = canSaveToDisk();
+  const [handle, setHandle] = useState<RepoFileHandle | null>(null);
+  const [busy, setBusy] = useState<'idle' | 'linking' | 'saving'>('idle');
+  const [savedAt, setSavedAt] = useState<string>('');
   const [error, setError] = useState('');
-  const [result, setResult] = useState<DeployResult | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const patch = (p: Partial<DeployConfig>) => {
-    const next = { ...config, ...p };
-    setConfig(next);
-    saveConfig(next);
-    setInfo(null);
-  };
+  // Restore the previously linked file, if any.
+  useEffect(() => {
+    void loadSavedHandle().then(setHandle);
+  }, []);
 
-  const commitToken = () => {
-    saveToken(token);
-    setTokenDirty(false);
-    setInfo(null);
-  };
+  const json = () => JSON.stringify(content, null, 2);
 
-  const ready = Boolean(config.owner && config.repo && token);
-
-  const runTest = async () => {
-    setStatus('testing');
+  const link = async () => {
+    setBusy('linking');
     setError('');
-    setResult(null);
     try {
-      commitToken();
-      setInfo(await testConnection(config, token));
+      setHandle(await linkRepoFile());
     } catch (e) {
-      setInfo(null);
-      setError(e instanceof Error ? e.message : String(e));
+      // The user closing the picker is a normal outcome, not an error.
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
     } finally {
-      setStatus('idle');
+      setBusy('idle');
     }
   };
 
-  const runDeploy = async () => {
-    setStatus('deploying');
+  const save = async () => {
+    setBusy('saving');
     setError('');
-    setResult(null);
     try {
-      commitToken();
-      const json = JSON.stringify(content, null, 2);
-      setResult(await deployContent(config, token, json));
+      // Link on first use so "Save" is always one click from the user's view.
+      let h = handle;
+      if (!h) {
+        h = await linkRepoFile();
+        setHandle(h);
+      }
+      await writeToHandle(h, json());
+      setSavedAt(new Date().toLocaleTimeString());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
     } finally {
-      setStatus('idle');
+      setBusy('idle');
     }
+  };
+
+  const copyCmd = () => {
+    void navigator.clipboard
+      .writeText('npm run deploy')
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1800);
+      })
+      .catch(() => setError('Could not copy — select the command and copy it manually.'));
   };
 
   return (
     <>
       <Panel
-        title="Deploy to the live site"
-        description="Commits your content straight to GitHub from this page. Your host rebuilds automatically — no VS Code, no terminal."
+        title="Save your changes"
+        description="Writes content.json straight into your project folder. No token, no credentials — then you push."
         actions={
           <span
             className={`rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-widest ${
-              ready
+              handle
                 ? 'border border-ds/30 bg-ds/10 text-ds'
                 : 'border border-ash-600/40 text-ash-400'
             }`}
           >
-            {ready ? 'Connected' : 'Not connected'}
+            {handle ? 'File linked' : supported ? 'Not linked yet' : 'Download mode'}
           </span>
         }
       >
-        <div className="space-y-4">
-          <Grid2>
-            <Field
-              label="GitHub owner (your username)"
-              value={config.owner}
-              onChange={(v) => patch({ owner: v.trim() })}
-              placeholder="wishmantharambuka-wq"
-            />
-            <Field
-              label="Repository name"
-              value={config.repo}
-              onChange={(v) => patch({ repo: v.trim() })}
-              placeholder="portfolio"
-            />
-          </Grid2>
-
-          <Grid2>
-            <Field
-              label="Branch"
-              value={config.branch}
-              onChange={(v) => patch({ branch: v.trim() })}
-              placeholder="main"
-            />
-            <Field
-              label="File path in the repo"
-              value={config.path}
-              onChange={(v) => patch({ path: v.trim() })}
-              hint="Leave as public/content.json unless you moved it."
-            />
-          </Grid2>
-
-          {/* Token */}
-          <div>
-            <label
-              htmlFor="deploy-token"
-              className="mb-1.5 block text-xs font-medium text-ash-300"
-            >
-              Fine-grained GitHub token
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <input
-                id="deploy-token"
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                className="field flex-1"
-                placeholder="github_pat_…"
-                value={token}
-                onChange={(e) => {
-                  setToken(e.target.value);
-                  setTokenDirty(true);
-                }}
-              />
-              {tokenDirty ? (
-                <button type="button" onClick={commitToken} className="btn-ghost shrink-0">
-                  Save token
-                </button>
-              ) : (
-                token && (
+        <ol className="space-y-4">
+          <Step n={1} title={supported ? 'Save to the repo file' : 'Download content.json'}>
+            {supported ? (
+              <>
+                <p className="text-sm text-ash-400">
+                  {handle ? (
+                    <>
+                      Linked to <code className="text-ash-200">{handle.name}</code> — saving
+                      overwrites it in place.
+                    </>
+                  ) : (
+                    <>
+                      The first save asks you to pick a file. Choose{' '}
+                      <code className="text-ash-200">public/content.json</code> inside this
+                      project folder (create it there if it doesn&apos;t exist yet). It&apos;s
+                      remembered after that.
+                    </>
+                  )}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    className="btn-danger shrink-0"
-                    onClick={() => {
-                      forgetToken();
-                      setToken('');
-                      setInfo(null);
-                    }}
+                    onClick={save}
+                    disabled={busy !== 'idle'}
+                    className="btn-primary"
                   >
-                    Forget
+                    {busy === 'saving' ? 'Saving…' : 'Save to repo'}
                   </button>
-                )
-              )}
-            </div>
-            {token && !tokenDirty && (
-              <p className="mt-1 font-mono text-[11px] text-ash-500">
-                Stored in this browser: {maskToken(token)}
+                  <button
+                    type="button"
+                    onClick={link}
+                    disabled={busy !== 'idle'}
+                    className="btn-ghost"
+                  >
+                    {handle ? 'Change file' : 'Link file'}
+                  </button>
+                  {handle && (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => {
+                        void forgetHandle().then(() => {
+                          setHandle(null);
+                          setSavedAt('');
+                        });
+                      }}
+                    >
+                      Forget
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => downloadJson(json())}
+                    className="btn-ghost"
+                  >
+                    Download instead
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-ash-400">
+                  This browser can&apos;t write files directly — that needs Chrome, Edge, Brave or
+                  Opera. Download the file and move it to{' '}
+                  <code className="text-ash-200">public/content.json</code>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => downloadJson(json())}
+                  className="btn-primary mt-3"
+                >
+                  Download content.json
+                </button>
+              </>
+            )}
+
+            {savedAt && !error && (
+              <p className="mt-3 rounded-lg border border-ds/25 bg-ds/[0.06] px-3 py-2 text-[13px] text-ash-200">
+                Saved at {savedAt}. Now push (step 2) to put it live.
               </p>
             )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex flex-wrap items-center gap-3 border-t border-ash-700/60 pt-4">
-            <button
-              type="button"
-              onClick={runDeploy}
-              disabled={!ready || status !== 'idle'}
-              className="btn-primary"
-            >
-              {status === 'deploying' ? 'Deploying…' : 'Deploy now'}
-            </button>
-            <button
-              type="button"
-              onClick={runTest}
-              disabled={!ready || status !== 'idle'}
-              className="btn-ghost"
-            >
-              {status === 'testing' ? 'Checking…' : 'Test connection'}
-            </button>
-          </div>
-
-          {/* Feedback */}
-          {info && !error && (
-            <div className="rounded-lg border border-ds/25 bg-ds/[0.06] p-3 text-sm text-ash-200">
-              <p>
-                Connected to <strong className="text-ash-50">{info.repoFullName}</strong>
-                {' · '}default branch <code className="text-ash-100">{info.defaultBranch}</code>
-              </p>
-              <p className="mt-1 text-[13px] text-ash-300">
-                {info.fileExists
-                  ? 'content.json exists and will be updated.'
-                  : 'content.json does not exist yet — the first deploy will create it.'}
-                {!info.canWrite && ' ⚠ This token may not have write access.'}
-              </p>
-            </div>
-          )}
-
-          {result && (
-            <div className="rounded-lg border border-ds/30 bg-ds/[0.08] p-3 text-sm text-ash-200">
-              <p className="font-medium text-ash-50">
-                {result.created ? 'Created' : 'Updated'} content.json — commit{' '}
-                <code className="text-ds">{result.commitSha}</code>
-              </p>
-              <p className="mt-1 text-[13px] text-ash-300">
-                Your host is rebuilding now. The live site usually updates within a minute —
-                then hard-refresh it.
-              </p>
-              <a
-                href={result.commitUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="mt-2 inline-block font-mono text-[11px] text-ds underline"
+            {error && (
+              <p
+                role="alert"
+                className="mt-3 rounded-lg border border-red-500/30 bg-red-500/[0.08] px-3 py-2 text-[13px] text-red-300"
               >
-                View the commit on GitHub ↗
-              </a>
-            </div>
-          )}
+                {error}
+              </p>
+            )}
+          </Step>
 
-          {error && (
-            <div
-              role="alert"
-              className="rounded-lg border border-red-500/30 bg-red-500/[0.08] p-3 text-sm text-red-300"
-            >
-              {error}
-            </div>
-          )}
-        </div>
-      </Panel>
-
-      <Panel title="How to get the token (one time)">
-        <ol className="space-y-3">
-          <Step n={1} title="Open GitHub’s fine-grained token page">
+          <Step n={2} title="Push it">
             <p className="text-sm text-ash-400">
-              github.com → Settings → Developer settings → Personal access tokens →{' '}
-              <strong className="text-ash-200">Fine-grained tokens</strong> → Generate new token.
+              In a terminal in the project folder — or just click Push in GitHub Desktop:
             </p>
-          </Step>
-          <Step n={2} title="Scope it as tightly as possible">
-            <ul className="mt-1 space-y-1 text-sm text-ash-400">
-              <li>
-                • Repository access → <strong className="text-ash-200">Only select repositories</strong> →
-                pick just your portfolio repo
-              </li>
-              <li>
-                • Permissions → Repository permissions →{' '}
-                <strong className="text-ash-200">Contents: Read and write</strong> (nothing else)
-              </li>
-              <li>• Expiration → set one, e.g. 90 days</li>
-            </ul>
-          </Step>
-          <Step n={3} title="Paste it above and hit Test connection">
-            <p className="text-sm text-ash-400">
-              It is saved in this browser only. When it expires, generate another and paste it again.
+            <div className="mt-2 flex items-center gap-2">
+              <code className="flex-1 overflow-x-auto rounded-lg border border-ash-700/60 bg-ash-950/60 px-3 py-2 font-mono text-[12px] text-ash-200">
+                npm run deploy
+              </code>
+              <button type="button" onClick={copyCmd} className="btn-ghost shrink-0">
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-ash-400">
+              That stages <code className="text-ash-200">public/</code>, commits and pushes. Your
+              host rebuilds and the live site updates in about a minute.
             </p>
           </Step>
         </ol>
+      </Panel>
 
-        <div className="mt-5 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] p-3 text-[13px] leading-relaxed text-amber-200/90">
-          <strong className="text-amber-200">Be honest about the trade-off.</strong> A static site
-          has no server to hide a token in, so it lives in this browser&apos;s storage. That is why
-          the scope above matters: if that token ever leaked, someone could edit files in that{' '}
-          <em>one</em> repository — not your account, not your other repos. Never paste a{' '}
-          <strong className="text-amber-200">classic</strong> token here; those are account-wide.
-        </div>
+      <Panel title="Why it works this way">
+        <p className="text-sm leading-relaxed text-ash-400">
+          Publishing needs write access to your repository, and a static site has no server to
+          keep a credential in. Rather than park a GitHub token in this browser, the panel writes
+          to a file you picked and leaves the push to you.
+        </p>
+        <ul className="mt-3 space-y-1.5 text-sm text-ash-400">
+          <li>
+            • <strong className="text-ash-200">No secret exists</strong> — nothing to leak, expire
+            or rotate.
+          </li>
+          <li>
+            • The browser can only touch the <strong className="text-ash-200">one file</strong> you
+            chose, and only while you allow it.
+          </li>
+          <li>
+            • Nothing reaches the public site until{' '}
+            <strong className="text-ash-200">you</strong> push, so a mistake is never live by
+            accident.
+          </li>
+        </ul>
+        <p className="mt-3 text-sm text-ash-400">
+          Trade-off: publishing takes one extra command. That&apos;s the price of holding no
+          credentials, and on balance it&apos;s the right one.
+        </p>
       </Panel>
     </>
   );

@@ -70,10 +70,22 @@ is deliberately a two-step you do on purpose:
 ```
 edit in #/admin  →  saved to your browser (localStorage)  →  instantly visible to you
       ↓
-Publish tab → "Download content.json"
+Publish tab → "Save to repo"   (writes public/content.json directly, via the
+      ↓                         File System Access API — no token, no Downloads
+      ↓                         folder; the file is picked once and remembered)
+npm run deploy                 (git add public && commit && push)
       ↓
-save as public/content.json → git commit → push → visitors see it
+host rebuilds → visitors see it
 ```
+
+Full walkthrough: **[DEPLOY.md](DEPLOY.md)**.
+
+There is deliberately **no stored credential**. An earlier version committed
+straight to GitHub with a fine-grained token held in `localStorage`; that was
+removed in favour of writing to disk and letting you push. The browser is
+granted only permission to write the one file you picked, and nothing reaches
+the public site without your push — so an accidental publish is impossible.
+Browsers without the API (Firefox, Safari) fall back to a download.
 
 The app layers content in three levels, highest wins:
 
