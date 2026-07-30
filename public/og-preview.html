@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OG image preview — export to og-image.png</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root { color-scheme: light dark; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        background: #0a1512;
+        color: #cbd8d2;
+        font-family: 'JetBrains Mono', monospace;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        padding: 28px;
+      }
+      .hint {
+        max-width: 1200px;
+        font-size: 13px;
+        line-height: 1.7;
+        color: #8fb3a5;
+      }
+      .hint b { color: #d6efe5; }
+      .hint code {
+        background: rgba(255, 255, 255, 0.08);
+        padding: 1px 6px;
+        border-radius: 4px;
+        color: #eafff6;
+      }
+
+      /* The exact 1200×630 export surface. Screenshot THIS element only. */
+      #card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        flex: none;
+        border-radius: 2px;
+        background:
+          radial-gradient(120% 120% at 80% 110%, rgba(31, 163, 124, 0.55), transparent 55%),
+          linear-gradient(158deg, #1fa37c 0%, #0c6b52 40%, #06342a 78%, #02100c 100%);
+        color: #fff;
+        font-family: 'Space Grotesk', sans-serif;
+      }
+
+      /* Map grid */
+      #card .grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(120% 120% at 50% 40%, #000 55%, transparent 100%);
+      }
+      /* Contour rings */
+      #card .rings {
+        position: absolute;
+        right: -140px;
+        bottom: -180px;
+        width: 720px;
+        height: 720px;
+      }
+      #card .rings span {
+        position: absolute;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 50%;
+        inset: 0;
+      }
+
+      #card .inner {
+        position: relative;
+        height: 100%;
+        padding: 64px 72px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      /* Top row */
+      #card .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      #card .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      #card .leaf {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #card .wordmark {
+        font-weight: 600;
+        font-size: 22px;
+        letter-spacing: 0.02em;
+      }
+      #card .badge {
+        display: flex;
+        align-items: stretch;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+      }
+      #card .badge .yr {
+        background: #fff;
+        color: #06342a;
+        font-weight: 700;
+        font-size: 15px;
+        line-height: 1.05;
+        padding: 7px 9px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      #card .badge .lbl {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        color: #eafff6;
+      }
+
+      /* Centre block */
+      #card .centre { margin-top: -8px; }
+      #card .eyebrow {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        letter-spacing: 0.5em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.82);
+        margin-bottom: 14px;
+      }
+      #card .word {
+        font-weight: 700;
+        font-size: 150px;
+        line-height: 0.9;
+        letter-spacing: -0.03em;
+        text-transform: uppercase;
+        color: #fff;
+      }
+
+      /* Bottom */
+      #card .rule {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.25);
+        margin-bottom: 18px;
+      }
+      #card .name {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.92);
+      }
+    </style>
+  </head>
+  <body>
+    <p class="hint">
+      <b>Export this to <code>public/og-image.png</code> (1200×630).</b><br />
+      Easiest way: open DevTools → run <code>document.getElementById('card')</code>, right-click
+      the node → <b>Capture node screenshot</b> (Chrome/Edge). Or zoom the page to 100%, take a
+      screenshot of just the card, and crop to 1200×630. Then drop the file in
+      <code>public/</code> and commit. Edit the text below directly in this file if you want
+      different wording.
+    </p>
+
+    <div id="card">
+      <div class="grid"></div>
+      <div class="rings">
+        <span style="inset: 0"></span>
+        <span style="inset: 90px"></span>
+        <span style="inset: 180px"></span>
+        <span style="inset: 270px"></span>
+      </div>
+
+      <div class="inner">
+        <div class="top">
+          <div class="brand">
+            <span class="leaf">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M20 4C10 4 4 9 4 15a5 5 0 0 0 5 5c6 0 11-6 11-16Z"
+                  stroke="#fff"
+                  stroke-width="1.6"
+                  stroke-linejoin="round"
+                />
+                <path d="M16 8 7 17" stroke="#fff" stroke-width="1.6" stroke-linecap="round" />
+              </svg>
+            </span>
+            <span class="wordmark">Chamod</span>
+          </div>
+
+          <div class="badge">
+            <div class="yr"><span>20</span><span>26</span></div>
+            <div class="lbl">Portfolio</div>
+          </div>
+        </div>
+
+        <div class="centre">
+          <div class="eyebrow">Data Science · Informatics &amp; GIS · Design</div>
+          <div class="word">Portfolio</div>
+        </div>
+
+        <div>
+          <div class="rule"></div>
+          <div class="name">P. A. Chamod Wismantha Senevirathna</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

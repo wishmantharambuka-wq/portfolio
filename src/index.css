@@ -1,0 +1,678 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+ *  THEME TOKENS
+ *
+ *  The ash ramp is *semantic*, not literal: `--ash-950` always means "page
+ *  background" and `--ash-50` always means "strongest text". The light theme
+ *  inverts the ramp, which is why no component needs a `dark:` variant.
+ * ========================================================================== */
+
+@layer base {
+  /* ------------------------------------------------------------------ *
+   *  GREEN PALETTE — light-first.
+   *
+   *  Sampled from the reference rail: #1FA37C → #0C6B52 → #064435 → #02100C.
+   *
+   *  Light is now the DEFAULT (bare `:root`), not an alternative. The ramp
+   *  stays semantic: --ash-950 is always "page ground", --ash-50 is always
+   *  "strongest text", so components need no `dark:` variants either way.
+   *
+   *  The three discipline accents are all greens, separated by hue-lean and
+   *  value rather than by being different colours: emerald (blue-green) for
+   *  Data Science, deep teal-green for GIS, sage for Design.
+   * ------------------------------------------------------------------ */
+  :root,
+  :root[data-theme='light'] {
+    color-scheme: light;
+
+    /* Clean white, faintly green — pure #fff under a green scene reads cold. */
+    --ash-950: 244 249 246;
+    --ash-900: 255 255 255;
+    --ash-850: 237 245 241;
+    --ash-800: 228 239 233;
+    --ash-700: 205 224 215;
+    --ash-600: 168 196 184;
+    --ash-500: 116 146 134;
+    --ash-400: 84 114 103;
+    --ash-300: 54 82 71;
+    --ash-200: 30 54 45;
+    --ash-100: 16 36 28;
+    --ash-50: 6 22 16;
+
+    --accent-ds: 10 107 81;
+    --accent-gis: 20 84 74;
+    --accent-gfx: 62 107 75;
+
+    /* Clean white surfaces, with the hairline carried by ink rather than by
+       the same tint — a white-on-white border is invisible. */
+    --glass-tint: 255 255 255;
+    --glass-line: 6 22 16;
+    --glass-bg: 0.55;
+    --glass-bg-focus: 0.82;
+    --glass-border: 0.08;
+    --glass-border-focus: 0.16;
+    --glass-highlight: 0.9;
+    --glass-shadow: 10 60 44;
+    --glass-shadow-alpha: 0.1;
+
+    /* Card fill, as an alpha over --ash-900. Cards sit on top of a busy
+       animated 3D scene, so this is a legibility floor, not a style choice:
+       below ~0.7 the terrain reads through the body copy. */
+    --card-bg: 0.78;
+    --card-bg-focus: 0.94;
+
+    --page-wash-1: 31 163 124;
+    --page-wash-2: 12 107 82;
+    --page-wash-3: 6 68 53;
+    --page-wash-alpha: 0.09;
+    --grain-opacity: 0.016;
+    /* Sits between the 3D scene and the content. Raised from 0.28 — the
+       scene was competing with body copy rather than sitting behind it. */
+    --scrim-alpha: 0.52;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+
+    /* The deep end of the same green ramp — near-black with green in it. */
+    --ash-950: 2 16 12;
+    --ash-900: 5 24 18;
+    --ash-850: 7 31 24;
+    --ash-800: 10 40 31;
+    --ash-700: 16 60 47;
+    --ash-600: 26 84 66;
+    --ash-500: 60 122 101;
+    --ash-400: 118 166 148;
+    --ash-300: 162 200 186;
+    --ash-200: 200 226 216;
+    --ash-100: 224 240 233;
+    --ash-50: 240 250 245;
+
+    --accent-ds: 46 200 152;
+    --accent-gis: 122 200 140;
+    --accent-gfx: 168 214 176;
+
+    --glass-tint: 226 245 238;
+    --glass-line: 226 245 238;
+    --glass-bg: 0.04;
+    --glass-bg-focus: 0.085;
+    --glass-border: 0.1;
+    --glass-border-focus: 0.18;
+    --glass-highlight: 0.14;
+    --glass-shadow: 0 0 0;
+    --glass-shadow-alpha: 0.7;
+
+    /* See the light-theme note. Dark needs to be higher still: the terrain
+       is emissive here, so it punches through a translucent card far more
+       than it does on a pale ground. */
+    --card-bg: 0.82;
+    --card-bg-focus: 0.95;
+
+    --page-wash-1: 31 163 124;
+    --page-wash-2: 12 107 82;
+    --page-wash-3: 6 68 53;
+    --page-wash-alpha: 0.14;
+    --grain-opacity: 0.03;
+    --scrim-alpha: 0.7;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    /* Lenis drives scrolling; native smooth-scroll would fight it. */
+    scroll-behavior: auto;
+  }
+
+  body {
+    @apply bg-ash-950 text-ash-200 font-sans antialiased;
+    margin: 0;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(120% 80% at 50% -10%, rgb(var(--page-wash-1) / var(--page-wash-alpha)), transparent 60%),
+      radial-gradient(90% 60% at 100% 40%, rgb(var(--page-wash-2) / var(--page-wash-alpha)), transparent 60%),
+      radial-gradient(80% 60% at 0% 80%, rgb(var(--page-wash-3) / var(--page-wash-alpha)), transparent 60%);
+    background-attachment: fixed;
+    transition: background-color 0.5s ease, color 0.5s ease;
+  }
+
+  ::selection {
+    @apply bg-ds/25 text-ash-50;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ash-700 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ash-600;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ds/60 ring-offset-2 ring-offset-ash-950 rounded-md;
+  }
+}
+
+@layer components {
+  /* The core surface of the site. */
+  .glass {
+    background: rgb(var(--glass-tint) / var(--glass-bg));
+    border: 1px solid rgb(var(--glass-line) / var(--glass-border));
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    box-shadow:
+      0 1px 0 0 rgb(var(--glass-tint) / var(--glass-highlight)) inset,
+      0 24px 60px -24px rgb(var(--glass-shadow) / var(--glass-shadow-alpha));
+  }
+
+  .glass-strong {
+    background: rgb(var(--ash-900) / 0.88);
+    border: 1px solid rgb(var(--glass-line) / var(--glass-border));
+    backdrop-filter: blur(28px) saturate(150%);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    box-shadow:
+      0 1px 0 0 rgb(var(--glass-tint) / var(--glass-highlight)) inset,
+      0 30px 80px -30px rgb(var(--glass-shadow) / calc(var(--glass-shadow-alpha) + 0.15));
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  FOCUS GLASS — the centre-of-screen effect.
+   *
+   *  `--focus` is written by src/lib/useFocusBlur.ts as the card crosses
+   *  the middle of the viewport. Because `backdrop-filter` only samples
+   *  what is directly behind its own element, the 3D scene blurs *inside
+   *  the card's footprint only* — the rest of the page stays sharp.
+   * ------------------------------------------------------------------ */
+  .focus-glass {
+    --focus: 0;
+    /* Two layers: an opaque-enough page-coloured base for legibility, plus
+       the tint highlight on top for the glass quality. Tint alone can't do
+       both — the alpha needed to read over the 3D scene kills the frost. */
+    background:
+      linear-gradient(
+        0deg,
+        rgb(var(--glass-tint) / calc(var(--glass-bg) * 0.35 + 0.02)),
+        rgb(var(--glass-tint) / calc(var(--glass-bg) * 0.35 + 0.02))
+      ),
+      rgb(
+        var(--ash-900) /
+          calc(var(--card-bg) + (var(--card-bg-focus) - var(--card-bg)) * var(--focus))
+      );
+    border: 1px solid
+      rgb(
+        var(--glass-line) /
+          calc(
+            var(--glass-border) + (var(--glass-border-focus) - var(--glass-border)) * var(--focus)
+          )
+      );
+    backdrop-filter: blur(calc(6px + 26px * var(--focus))) saturate(calc(120% + 40% * var(--focus)));
+    -webkit-backdrop-filter: blur(calc(6px + 26px * var(--focus)))
+      saturate(calc(120% + 40% * var(--focus)));
+    box-shadow:
+      0 1px 0 0 rgb(var(--glass-tint) / calc(var(--glass-highlight) * var(--focus))) inset,
+      0 24px 60px -24px rgb(var(--glass-shadow) / calc(var(--glass-shadow-alpha) * var(--focus)));
+    transform: translateZ(0) scale(calc(1 + 0.006 * var(--focus)));
+    /* No CSS transition here: --focus is already smoothed per-frame by the
+       rAF loop, and transitioning it as well would add visible lag. */
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  LISTING ROW  (ref: the chip stack in the dial screenshot)
+   *
+   *  Rows recede in depth away from the centre of the screen: the focused
+   *  row is sharp, full-size and fully opaque, its neighbours blur, shrink
+   *  and slide back. Driven by the same `--focus` value the focus-glass
+   *  cards use, so there's one scroll-position system, not two.
+   * ------------------------------------------------------------------ */
+  .listing-row {
+    --focus: 0;
+    /* Depth cue only — NOT a legibility filter.
+       These were 0.32 opacity / 2.6px blur, which made off-centre projects
+       genuinely unreadable and discouraged scrolling through them. An
+       unfocused row must still be fully readable; it just shouldn't be the
+       one you're looking at. */
+    filter: blur(calc((1 - var(--focus)) * 0.9px));
+    /* Floor is 0.86, not lower: row opacity dilutes every colour inside the
+       card against the card's own fill, and small mono metadata drops under
+       WCAG AA below about this value. */
+    opacity: calc(0.86 + 0.14 * var(--focus));
+    transform: scale(calc(0.985 + 0.015 * var(--focus)))
+      translateX(calc((1 - var(--focus)) * 6px));
+    transform-origin: left center;
+    will-change: filter, opacity, transform;
+  }
+
+  /* Hover beats scroll position: pointing at a row brings it fully forward
+     regardless of where it sits on screen. */
+  .listing-row:hover,
+  .listing-row:focus-within {
+    filter: none;
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  PROJECT CARD HOVER
+   *
+   *  Without this the listing gave no signal that a project was openable,
+   *  so nothing invited a click. On hover the card lifts, its rim takes
+   *  the section accent, and an accent wash rises from the bottom edge.
+   * ------------------------------------------------------------------ */
+  .project-card {
+    --accent: var(--accent-ds);
+    position: relative;
+    transition:
+      transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+      border-color 0.35s ease,
+      box-shadow 0.4s ease;
+  }
+
+  .project-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    background: linear-gradient(to top, rgb(var(--accent) / 0.16), transparent 55%);
+  }
+
+  .group\/card:hover .project-card,
+  .project-card:focus-within {
+    transform: translateY(-4px);
+    border-color: rgb(var(--accent) / 0.55);
+    box-shadow:
+      0 18px 50px -18px rgb(var(--accent) / 0.4),
+      0 0 0 1px rgb(var(--accent) / 0.25);
+  }
+
+  .group\/card:hover .project-card::after,
+  .project-card:focus-within::after {
+    opacity: 1;
+  }
+
+  /* "Open live site" bar — hidden until hover, then slides up from the
+     bottom edge of the card. */
+  .open-live {
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 0.35s ease,
+      transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .group\/card:hover .open-live,
+  .project-card:focus-within .open-live {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  /* Touch devices have no hover — always show it there. */
+  @media (hover: none) {
+    .open-live {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* The connector rail running down the left of a listing. */
+  .listing-rail {
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--ash-600) / 0.5) 12%,
+      rgb(var(--ash-600) / 0.5) 88%,
+      transparent
+    );
+  }
+
+  .hairline {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--glass-line) / calc(var(--glass-border) + 0.08)) 20%,
+      rgb(var(--glass-line) / calc(var(--glass-border) + 0.08)) 80%,
+      transparent
+    );
+  }
+
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.28em] text-ash-400;
+  }
+
+  .text-gradient {
+    background: linear-gradient(180deg, rgb(var(--ash-50)) 0%, rgb(var(--ash-300)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  DISPLAY TYPE  (ref: the architecture PORTFOLIO cover)
+   *
+   *  Heavy condensed letterforms with a long, soft, offset shadow. Done
+   *  with a single drop-shadow filter rather than the classic stacked
+   *  text-shadow ladder: the ladder needs ~30 layers for this length and
+   *  repaints all of them on every frame the hero animates.
+   * ------------------------------------------------------------------ */
+  .display-shadow {
+    filter: drop-shadow(0.06em 0.07em 0.05em rgb(var(--ash-950) / 0.85))
+      drop-shadow(0.14em 0.16em 0.18em rgb(var(--ash-950) / 0.5));
+  }
+
+  /* Letterforms filled with a soft material gradient instead of flat ink,
+     echoing the photographic fill in the reference. */
+  .display-fill {
+    background:
+      linear-gradient(155deg, rgb(var(--ash-50)) 0%, rgb(var(--ash-100)) 38%,
+        rgb(var(--ash-300)) 62%, rgb(var(--ash-500)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  TEXTURED TYPE  (ref: the architecture cover, whose letters are
+   *  filled with concrete photography)
+   *
+   *  `--type-texture` is set inline from content.assets.heroTexture. When
+   *  no photo is supplied it falls back to the layered gradient below,
+   *  which is the permanent default rather than a placeholder — the cover
+   *  is complete without ever adding an image.
+   * ------------------------------------------------------------------ */
+  .textured-type {
+    --type-texture:
+      radial-gradient(90% 140% at 12% 0%, rgb(var(--ash-50)) 0%, transparent 55%),
+      radial-gradient(70% 120% at 78% 100%, rgb(var(--ash-600)) 0%, transparent 60%),
+      linear-gradient(158deg,
+        rgb(var(--ash-100)) 0%,
+        rgb(var(--ash-300)) 34%,
+        rgb(var(--ash-700)) 68%,
+        rgb(var(--ash-500)) 100%);
+    background-image: var(--type-texture);
+    background-size: cover;
+    background-position: center 42%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  LIGHT CONE  (ref: the ZAYTA hanging lamp)
+   *  A soft wedge of light falling from the lamp onto the cards below.
+   * ------------------------------------------------------------------ */
+  .light-cone {
+    background: linear-gradient(
+      to bottom,
+      rgb(var(--ash-50) / 0.16) 0%,
+      rgb(var(--ash-50) / 0.07) 34%,
+      rgb(var(--ash-50) / 0.02) 66%,
+      transparent 100%
+    );
+    /* The wedge shape — narrow at the bulb, wide at the floor. */
+    clip-path: polygon(46% 0%, 54% 0%, 100% 100%, 0% 100%);
+    filter: blur(14px);
+  }
+
+  /* Cards sitting under the lamp pick up a warm pool of light. */
+  .lit-surface {
+    position: relative;
+  }
+  .lit-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      120% 90% at 50% -20%,
+      rgb(var(--accent-ds) / 0.13),
+      transparent 62%
+    );
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  TILT CARD  (paired with useTilt)
+   *
+   *  `transform-style: preserve-3d` lets the rotated card have real depth;
+   *  `will-change` keeps the per-frame transform on the compositor. The
+   *  ::after is a specular sheen that follows the pointer via the
+   *  --glare-x/--glare-y custom properties the hook writes, fading in only
+   *  while the card is tilted (--tilt).
+   * ------------------------------------------------------------------ */
+  .tilt-card {
+    --tilt: 0;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .tilt-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: calc(var(--tilt) * 0.6);
+    transition: opacity 0.3s ease;
+    background: radial-gradient(
+      420px circle at var(--glare-x, 50%) var(--glare-y, 50%),
+      rgb(255 255 255 / 0.14),
+      transparent 60%
+    );
+    z-index: 2;
+  }
+
+  /* The inverted name plate — white type knocked out of a solid bar. */
+  .name-plate {
+    display: inline-block;
+    background: rgb(var(--ash-50));
+    color: rgb(var(--ash-950));
+    padding: 0.28em 0.6em 0.32em;
+    letter-spacing: 0.06em;
+    line-height: 1;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  COVER FRAME  (ref: the POLLES portfolio cover)
+   *
+   *  A large rounded panel inset from the viewport edge, with light
+   *  running along its border — brightest at two opposite corners, fading
+   *  to nothing along the middle of each side. Two layers do this: a
+   *  conic sweep for the travelling highlight and a static rim for the
+   *  base hairline.
+   * ------------------------------------------------------------------ */
+  .cover-frame {
+    position: relative;
+    border-radius: 28px;
+    background:
+      linear-gradient(165deg,
+        rgb(var(--ash-900) / 0.72) 0%,
+        rgb(var(--ash-850) / 0.5) 55%,
+        rgb(var(--ash-900) / 0.66) 100%);
+    backdrop-filter: blur(30px) saturate(150%);
+    -webkit-backdrop-filter: blur(30px) saturate(150%);
+    box-shadow: 0 40px 120px -50px rgb(var(--glass-shadow) / 0.55);
+  }
+
+  /* The glowing rim. A masked border-box gradient rather than an outline,
+     so it can vary in intensity around the perimeter. */
+  .cover-frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--rim-angle, 0deg),
+      transparent 0deg,
+      rgb(var(--accent-ds) / 0.85) 40deg,
+      transparent 110deg,
+      transparent 180deg,
+      rgb(var(--accent-ds) / 0.85) 220deg,
+      transparent 290deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Static base hairline under the travelling highlight. */
+  .cover-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid rgb(var(--glass-line) / 0.09);
+    pointer-events: none;
+  }
+
+  /* Outlined display type — the knocked-out letters on the reference. */
+  .type-outline {
+    color: transparent;
+    -webkit-text-stroke: 2px rgb(var(--ash-50) / 0.82);
+  }
+  @media (min-width: 640px) {
+    .type-outline {
+      -webkit-text-stroke-width: 3px;
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  GHOST WORD  (ref: the ZAYTA landing page)
+   *  An oversized, barely-there word sitting behind a section heading.
+   * ------------------------------------------------------------------ */
+  .ghost-word {
+    position: absolute;
+    left: -0.06em;
+    top: -0.34em;
+    z-index: -1;
+    pointer-events: none;
+    user-select: none;
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    line-height: 0.8;
+    white-space: nowrap;
+    color: transparent;
+    -webkit-text-stroke: 1px rgb(var(--ash-300) / 0.16);
+    font-size: clamp(4.5rem, 17vw, 13rem);
+  }
+
+
+  /* Form controls, shared by the admin panel. */
+  .field {
+    @apply w-full rounded-lg border border-ash-700/70 bg-ash-900/60 px-3 py-2 text-sm text-ash-100
+      placeholder:text-ash-500 transition focus:border-ds/50 focus:outline-none;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+      transition disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply btn bg-ds/15 text-ds ring-1 ring-inset ring-ds/35 hover:bg-ds/25;
+  }
+  .btn-ghost {
+    @apply btn text-ash-300 ring-1 ring-inset ring-ash-700 hover:text-ash-50 hover:ring-ash-500;
+  }
+  .btn-danger {
+    @apply btn text-red-400 ring-1 ring-inset ring-red-500/30 hover:bg-red-500/10;
+  }
+}
+
+@layer utilities {
+  .grain::after {
+    content: '';
+    position: fixed;
+    inset: -50%;
+    pointer-events: none;
+    z-index: 60;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+ *  PRINT — the CV route doubles as the printable/PDF version, so "Download
+ *  CV" is just the browser's own Save-as-PDF. Nothing else prints.
+ * ========================================================================== */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .no-print,
+  .grain::after {
+    display: none !important;
+  }
+
+  .print-root {
+    position: static !important;
+    color: #000 !important;
+  }
+
+  .print-root * {
+    color: #111 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-color: #bbb !important;
+  }
+
+  .print-root a {
+    text-decoration: none !important;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* CV template: fill the page, keep the two-column split legible in B&W.
+     The sidebar tint prints if the user allows background graphics; if not,
+     the border keeps the columns visually distinct. */
+  .cv-sheet {
+    max-width: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .cv-sidebar {
+    background: #eef4f1 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    border-right: 1px solid #cdd8d2 !important;
+  }
+}
