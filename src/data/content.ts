@@ -471,6 +471,35 @@ I can make the result legible to people who will never open a notebook.`,
       image: '',
     },
     {
+      id: 'gis-shadow-sim',
+      title: 'Shadow Simulator — Dehiwala Urban Shadow Analysis',
+      year: '2026',
+      blurb: 'Time-animated 3D shadow simulation for the Dehiwala urban area, showing how building shadows move across the day.',
+      problem:
+        'Urban planners need to understand how building massing affects sunlight access at street level — ' +
+        'which footpaths, parks and facades fall into shadow at what hour — but shadow studies are ' +
+        'usually static snapshots locked inside desktop GIS or CAD software.',
+      approach:
+        'Built a browser-based shadow simulator that renders ground and facade shadows from building geometry ' +
+        'using solar position calculations for any time of day. A timeline slider and animated playback let ' +
+        'users watch shadows sweep across the Dehiwala study area from sunrise to sunset, with toggleable ' +
+        'base-map and layer controls.',
+      outcome:
+        'A planning tool anyone can open in a browser — no GIS licence, no 3D software. Animating a full ' +
+        'day of shadow movement takes seconds, making sunlight-access review a quick conversation instead ' +
+        'of a report nobody reads.',
+      stack: ['TypeScript', 'Mapbox GL / Deck.gl', 'GeoTIFF', 'Solar geometry', 'WebGL'],
+      metrics: [
+        { label: 'Time range', value: '06:00–18:15' },
+        { label: 'Layers', value: 'Ground + Facade' },
+        { label: 'Playback', value: 'Animated' },
+      ],
+      live: 'https://shadow-simulator-beta.vercel.app/',
+      repo: 'https://github.com/wishmantharambuka-wq/shadow-simulator',
+      status: 'live',
+      image: '',
+    },
+    {
       id: 'gis-greenuom',
       title: 'UoM GreenMap — Campus Digital Arboretum',
       year: '2025',
@@ -689,6 +718,7 @@ spatial reasoning is an asset.`,
       'gis-agriflow',
       'ds-passenger-survey',
       'gis-dehiwala',
+      'gis-shadow-sim',
       'ds-multicriteria',
       'gis-greenuom',
     ],
